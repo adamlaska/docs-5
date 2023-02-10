@@ -6,7 +6,7 @@
 @import "emoji";
 
 html {
-  font-family: BK-Circular, $font-family;
+  font-family: $font-family-base;
   font-size: 18px;
   font-weight: 400;
   background: white;
@@ -14,7 +14,7 @@ html {
 }
 
 .system-font {
-  font-family: $font-family;
+  font-family: $font-family-system;
 }
 
 body {
