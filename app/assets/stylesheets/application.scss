@@ -9,8 +9,8 @@ html {
   font-family: $font-family-base;
   font-size: $font-size-base;
   font-weight: normal;
-  background: white;
-  color: #1F1F1F;
+  background: $base-0;
+  color: map-get($color-aliases, 'text-base');
 }
 
 .system-font {
