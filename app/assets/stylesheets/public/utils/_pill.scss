@@ -66,8 +66,8 @@ $_pills: (
     content: "Coming soon"
   ),
   deprecated: (
-    background-color: rgba(0, 0, 0, .05),
-    border-color: rgba(0, 0, 0, .05),
+    background-color: $gray-200,
+    border-color: $gray-200,
     color: $charcoal-500,
     content: "Deprecated"
   ),
