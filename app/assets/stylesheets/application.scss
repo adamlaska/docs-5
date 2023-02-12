@@ -6,11 +6,12 @@
 @import "emoji";
 
 html {
+  background: $base-0;
+  color: map-get($color-aliases, 'text-base');
   font-family: $font-family-base;
   font-size: $font-size-base;
   font-weight: normal;
-  background: $base-0;
-  color: map-get($color-aliases, 'text-base');
+  line-height: 1.5;
 }
 
 .system-font {
