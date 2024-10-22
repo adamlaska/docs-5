@@ -1,9 +1,8 @@
 class BetaPages
   def self.all
     [
-      'test-analytics/rust-collectors',
-      'test-analytics/swift-collectors',
-      'test-analytics/android-collectors',
+      'path/page-name',
+      'path/last-page-name-in-list-without-trailing-comma'
     ]
   end
 end

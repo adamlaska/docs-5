@@ -3,6 +3,23 @@
 class Page
   HEADING_REGEX = /^[#]{2}\s(.+)$/
 
+  class << self
+    # Find all markdown pages in the pages directory (ignoring partials).
+    def all
+      Dir.glob("#{Rails.root}/pages/**/*.md")
+        .select { |path | !path.to_s.include?("/_") }
+        .map do |path|
+          Struct.new(:path, :updated_at).new(
+            path
+              .sub("#{Rails.root}/pages/", "/docs/")
+              .sub(/\.md$/, "")
+              .gsub("_", "-"),
+            File.mtime(path)
+          )
+      end
+    end
+  end
+
   class TemplateBinding
     delegate_missing_to :@view_helpers
 
@@ -27,18 +44,18 @@ class Page
       if args.include?(:width) && args.include?(:height)
         args[:max_width] = args[:width]
 
-        responsive_image_tag(image_url(name),
+        responsive_image_tag(image_path(name),
                              args[:width],
                              args[:height],
                              args.except(:width, :height))
       else
-        @view_helpers.image_tag(image_url(name), args)
+        @view_helpers.image_tag(image_path(name), args)
       end
     end
 
-    def image_url(name)
+    def image_path(name)
       stripped_image_path = @image_path.sub(/\Adocs\//, "")
-      @view_helpers.image_path(File.join(stripped_image_path, name))
+      @view_helpers.vite_asset_path(File.join("images", stripped_image_path, name))
     end
 
     def paginated_resource_docs_url
@@ -54,7 +71,7 @@ class Page
     end
 
     def render(partial)
-      PagesController.render(partial: partial, formats: [:md])
+      PagesController.render(partial: partial, formats: [:md, :html])
     end
 
     def render_markdown(partial: nil, text: nil)
@@ -73,10 +90,14 @@ class Page
 
     def responsive_image_tag(image, width, height, image_tag_options={}, &block)
       max_width = image_tag_options.delete(:max_width)
-      container = content_tag :div, image_tag(image, image_tag_options), class: ["responsive-image-container", image_tag_options[:class]]
+
+      img_class = image_tag_options.delete(:class).try(:split, " ") || []
+      img_class << "responsive-image-container"
+
+      container = content_tag :div, image_tag(image, image_tag_options), class: img_class
 
       if max_width
-        content_tag :div, container, style: "max-width: #{max_width}px", class: image_tag_options[:class]
+        content_tag :div, container, style: "max-width: #{max_width}px"
       else
         container
       end
@@ -100,16 +121,12 @@ class Page
     filename.present?
   end
 
-  def title
-    agentize_title(contents.match(/^\#\s(.+)/).try(:[], 1) || "")
-  end
-
-  def description
-    extracted_data.fetch("shortDescription")
+  def sections
+    extracted_data.fetch("sections")
   end
 
   def markdown_body
-    erb_renderer = ERB.new(contents, nil, '-')
+    erb_renderer = ERB.new(file.content, trim_mode: '-')
     template_binding = TemplateBinding.new(view_helpers: @view,
                                            image_path: File.join("docs", basename))
 
@@ -136,21 +153,66 @@ class Page
     @name.to_s.gsub(/[^0-9a-zA-Z\-\_\/]/, '').underscore
   end
 
+  # Page title, either from front matter or extracted from the markdown
+  def title
+    front_matter.fetch(:title, agentize_title(extracted_data.fetch("name")))
+  end
+
+  # Page description, either from front matter or extracted from the markdown
+  def description
+    front_matter.fetch(:description, extracted_data.fetch("shortDescription"))
+  end
+
+  # Should page render a table of contents?
+  def toc?
+    front_matter.fetch(:toc)
+  end
+
+  # Should pageinclude H3s in the table of contents?
+  def toc_include_h3?
+    front_matter.fetch(:toc_include_h3)
+  end
+
+  def template
+    front_matter.fetch(:template, "show")
+  end
+
+  # Returns focus keywords to guide content writers with an overview of the page content
+  # Note: it's not for meta keywords, which is a deprecated SEO practice
+  def keywords
+    # Gracefully falls back to the page's path if no keywords are specified to help reduce technical writer workload
+    front_matter.fetch(:keywords, keywords_from_path)
+  end
+
   private
 
-  def contents
-    @contents ||= begin
-                    File.read(filename) if exists?
-                  rescue => e
-                    raise e
-                  end
+  def front_matter
+    @front_matter ||= begin
+      defaults = {
+        # Default to rendering table of contents
+        "toc": true,
+        # Default to H3s being included in the table of contents
+        "toc_include_h3": true,
+      }
+      if file.front_matter
+        defaults.merge(file.front_matter.symbolize_keys)
+      else
+        defaults
+      end
+    end
+  end
+
+  def file
+    @_file ||= ::FrontMatterParser::Parser.parse_file(filename)
+  rescue
+    raise "Error parsing #{filename}"
   end
 
   def filename
     @filename ||= begin
                     directory = Rails.root.join("pages")
 
-                    potential_files = [ "#{basename}.md", "#{basename}.md.erb" ].map { |n| directory.join(n) }
+                    potential_files = [ "#{basename}.md" ].map { |n| directory.join(n) }
                     potential_files.find { |file| File.exist?(file) }
                   end
   end
@@ -161,5 +223,9 @@ class Page
     else
       title
     end
+  end
+
+  def keywords_from_path
+    @view.request.path.split("/").reject(&:empty?).map { |segment| segment.gsub("-", " ") }.join(", ")
   end
 end

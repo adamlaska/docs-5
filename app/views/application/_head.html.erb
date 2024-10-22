@@ -1,24 +1,30 @@
 <meta charset='utf-8'>
 <%= tag :link, rel: "dns-prefetch", href: ENV["ASSET_HOST"] if ENV["ASSET_HOST"] %>
 <link rel="dns-prefetch" href="//www2.buildkiteassets.com" />
-<link rel="preload" as="font" type="font/woff2" href="https://www2.buildkiteassets.com/assets/lineto-circular/lineto-circular-book-39c5d1ed54e49102939d0280aeb20f01ef021bf5ffa74dc25fcafb43fce62ff3.woff2" crossorigin="anonymous" />
-<link rel="preload" as="font" type="font/woff2" href="https://www2.buildkiteassets.com/assets/lineto-circular/lineto-circular-bold-23e71bdfef13622d0d52b2b4b7ed3c1edb9e81f210692130dee9a521e97d062f.woff2" crossorigin="anonymous" />
-<link rel="preload" as="font" type="font/woff2" href="https://www2.buildkiteassets.com/assets/lineto-circular/lineto-circular-black-a8002849ea799a4dcf1be0b1abe0f010991cbae508f24f62e9ee0262590197eb.woff2" crossorigin="anonymous" >
+<link rel="preload" as="font" type="font/woff2" href="https://buildkite.com/_site/fonts/aeonik/Aeonik-Medium.woff2" crossorigin="anonymous" />
+<link rel="preload" as="font" type="font/woff2" href="https://buildkite.com/_site/fonts/aeonik/Aeonik-MediumItalic.woff2" crossorigin="anonymous" />
+<link rel="preload" as="font" type="font/woff2" href="https://buildkite.com/_site/fonts/aeonik/Aeonik-Bold.woff2" crossorigin="anonymous" />
+<link rel="preload" as="font" type="font/woff2" href="https://buildkite.com/_site/fonts/aeonik/Aeonik-BoldItalic.woff2" crossorigin="anonymous" />
 
 <title><%= [content_for(:page_title), "Buildkite Documentation"].compact.join(" | ") %></title>
+<% if description = content_for(:page_description) %>
+<meta name="description" content="<%= description %>" />
+<% end %>
+
+<%= tag :link, rel: "canonical", href: seo_canonical_url %>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<%= stylesheet_link_tag "docsearch", "application", media: "all" %>
-
-<%= javascript_include_tag "docsearch", "application", nonce: true %>
 
 <%= csp_meta_tag %>
 
 <meta name="referrer" content="origin-when-cross-origin" />
 
-<%= tag :link, rel: "shortcut icon", href: image_path("favicon.png"), type: "image/x-icon" %>
-<%= tag :link, rel: "apple-touch-icon", href: image_path("appicon.png") %>
-<%= tag :link, rel: "mask-icon", href: image_path("logo-pinned.svg"), color: "#14CC80" %>
+<%# Links to pages on the same origin, but outside /docs site shouldn't use Turbo %>
+<meta name="turbo-root" content="/docs">
+
+<%= tag :link, rel: "shortcut icon", href: vite_asset_path("images/favicon.png"), type: "image/x-icon" %>
+<%= tag :link, rel: "apple-touch-icon", href: vite_asset_path("images/appicon.png") %>
+<%= tag :link, rel: "mask-icon", href: vite_asset_path("images/logo-pinned.svg"), color: "#14CC80" %>
 
 <!-- Twitter Cards Metadata -->
 <%= tag :meta, property: "twitter:card", content: content_for(:page_twitter_card) || "summary_large_image" %>
@@ -28,7 +34,7 @@
 <%= tag :meta, property: "og:type", content: content_for(:page_og_type) || "website" %>
 <%= tag :meta, property: "og:title", content: content_for(:page_og_title) || content_for(:page_title) || "Buildkite"%>
 <%= tag :meta, property: "og:description", content: content_for(:page_og_description) || content_for(:page_description) || "Automate your team’s software development processes, from testing through to delivery, no matter the language, environment or toolchain." %>
-<%= tag :meta, property: "og:image", content: content_for(:page_image) || image_url("opengraph_default.png").gsub(/^\/\//, 'https://') %>
+<%= tag :meta, property: "og:image", content: content_for(:page_image) || image_path("opengraph_default.png").gsub(/^\/\//, 'https://') %>
 <% if page_image_alt = content_for(:page_image_alt) %>
   <%= tag :meta, property: "og:image:alt", content: page_image_alt  %>
 <% end %>
@@ -37,6 +43,50 @@
 
 <%= render 'analytics', application: 'docs', title: "Docs / #{content_for(:page_title)}", logged_in: probably_authenticated? %>
 
-<% if ENV.fetch("ROBOTS_NO_INDEX") { "false" } == "true" %>
+<% if ENV.fetch("ROBOTS_NO_INDEX") { "false" } == "true" || [ "https://badge.buildkite.com", "https://badge.buildbox.io"].include?(request.base_url) %>
   <meta name="robots" content="noindex, nofollow">
+<% end %>
+
+<%= vite_client_tag %>
+<%= vite_javascript_tag 'application' %>
+<%= vite_stylesheet_tag 'application.scss' %>
+
+<%= render 'helpscout' %>
+
+<script>
+  (function() {
+    var theme = localStorage.getItem('theme') || 'system';
+    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (theme === 'dark' || (theme === 'system' && systemDark)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+
+<% if ENV.fetch("DD_RUM_ENABLED", false) %>
+<script>
+  (function(h,o,u,n,d) {
+    h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+    d=o.createElement(u);d.async=1;d.src=n
+    n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+  })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v4/datadog-rum.js','DD_RUM')
+  window.DD_RUM.onReady(function() {
+    window.DD_RUM.init({
+      clientToken: 'pubc9a743f98fb0ff68a47484d3672088cf',
+      applicationId: 'd8c88382-4a5b-43ec-9069-ba06aac75e7a',
+      site: 'datadoghq.com',
+      service: 'buildkite-docs',
+      env: '<%= ENV.fetch("DD_RUM_ENV", "unknown") %>',
+      version: '<%= ENV.fetch("DD_RUM_VERSION", "unknown") %>',
+      sessionSampleRate: 100,
+      sessionReplaySampleRate: 0,
+      trackUserInteractions: false,
+      trackResources: true,
+      trackLongTasks: true,
+      defaultPrivacyLevel: 'mask',
+    });
+
+    window.DD_RUM.startSessionReplayRecording();
+  })
+</script>
 <% end %>

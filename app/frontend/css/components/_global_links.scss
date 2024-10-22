@@ -1,0 +1,15 @@
+.GlobalLinks {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+
+  @media (min-width: $screen-md) {
+    justify-content: end;
+  }
+}
+
+.GlobalLinks__call-to-action {
+  margin-left: $gutter / 2;
+}

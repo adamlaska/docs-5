@@ -1,63 +1,99 @@
-FROM public.ecr.aws/docker/library/ruby:2.7.5-buster@sha256:d76f1c822df854ecc6a983c63be3bd2e5854a6b47a3cdd140664953877d91651
+ARG BASE_IMAGE=public.ecr.aws/docker/library/ruby:3.3.5-slim-bookworm
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:18-bookworm-slim@sha256:d2d8a6420c9fc6b7b403732d3a3c5395d016ebc4996f057aad1aded74202a476
 
-ARG RAILS_ENV
-ENV RAILS_ENV=${RAILS_ENV:-production}
+FROM $BASE_IMAGE AS builder
 
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+WORKDIR /app
 
-ADD https://deb.nodesource.com/gpgkey/nodesource.gpg.key /etc/apt/trusted.gpg.d/nodesource.asc
-ADD https://dl.yarnpkg.com/debian/pubkey.gpg /etc/apt/trusted.gpg.d/yarn.asc
 RUN echo "--- :package: Installing system deps" \
-    # Make sure apt can see trusted keys downloaded above (simpler than apt-key)
-    && chmod +r /etc/apt/trusted.gpg.d/*.asc \
-    # Yarn's key has carriage returns which confuses debian, so remove them
-    && sed -i 's/\r//' /etc/apt/trusted.gpg.d/*.asc \
     # Cache apt
-    && rm -f /etc/apt/apt.conf.d/docker-clean \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
     && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache \
-    # Node apt sources
-    && echo "deb http://deb.nodesource.com/node_10.x stretch main" > /etc/apt/sources.list.d/nodesource.list \
-    # Yarn apt sources
-    && echo "deb http://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
+    # Install a few pre-reqs
+    && apt-get update \
+    && apt-get install -y curl gnupg \
+    # Setup apt for GH cli
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
     # Install all the things
     && apt-get update \
-    && apt-get install -y nodejs yarn gh \
+    && apt-get install -y gh jq build-essential \
+    ## Pull down security updates
+    && apt-get upgrade -y \
     # Upgrade rubygems and bundler
     && gem update --system \
     && gem install bundler \
     # clean up
     && rm -rf /tmp/*
 
-WORKDIR /app
+# ------------------------------------------------------------------
 
-# Install deps
+FROM builder AS bundle
+
 COPY Gemfile Gemfile.lock .ruby-version ./
+
+ARG RAILS_ENV
+
 RUN echo "--- :bundler: Installing ruby gems" \
     && bundle config set --local without "$([ "$RAILS_ENV" = "production" ] && echo 'development test')" \
     && bundle config set force_ruby_platform true \
     && bundle install --jobs $(nproc) --retry 3
 
-COPY package.json package-lock.json ./
-RUN echo "--- :npm: Installing npm deps" \
-    && npm ci
+# ------------------------------------------------------------------
 
-# Add the app
-COPY . /app
+FROM $NODE_IMAGE as node-deps
 
-# Compile sprockets
+COPY package.json yarn.lock ./
+RUN echo "--- :yarn: Installing node packages" && yarn
+
+# ------------------------------------------------------------------
+
+FROM builder as assets
+
+COPY . /app/
+COPY --from=node-deps /usr/local/bin /usr/local/bin
+COPY --from=node-deps /node_modules /app/node_modules
+COPY --from=bundle /usr/local/bundle/ /usr/local/bundle/
+
+ARG RAILS_ENV
+
 RUN if [ "$RAILS_ENV" = "production" ]; then \
-    echo "--- :sprockets: Precompiling assets" \
-    && RAILS_ENV=production RAILS_GROUPS=assets bundle exec rake assets:precompile \
+    echo "--- :vite: Compiling assets" \
+    && RAILS_ENV=production RAILS_GROUPS=assets SECRET_KEY_BASE=xxx bundle exec rake assets:precompile \
     && cp -r /app/public/docs/assets /app/public/assets; \
     fi
 
-EXPOSE 3000
+# ------------------------------------------------------------------
 
-# Let puma serve the static files
+FROM $BASE_IMAGE AS runtime
+
+# Install a few misc. deps for CI
+RUN apt-get update && apt-get install -y curl jq
+RUN apt purge --assume-yes linux-libc-dev
+
+WORKDIR /app
+
+ARG RAILS_ENV
+ARG DD_RUM_VERSION="unknown"
+ARG DD_RUM_ENV="unknown"
+
+# Config. Don't love this.
+ENV RAILS_ENV=$RAILS_ENV
+ENV DD_RUM_ENV=${DD_RUM_ENV}
+ENV DD_RUM_VERSION=${DD_RUM_VERSION}
+ENV DD_RUM_ENABLED=true
 ENV RAILS_SERVE_STATIC_FILES=true
-
 ENV SEGMENT_TRACKING_ID=q0LtPl49tgnyHHY8PGBsPsshHk9AVNKm
+ENV SECRET_KEY_BASE=xxx
 
+COPY . /app
+COPY --from=node-deps /usr/local/bin /usr/local/bin
+COPY --from=node-deps /node_modules /app/node_modules
+COPY --from=bundle /usr/local/bundle/ /usr/local/bundle/
+COPY --from=assets /app/public/ /app/public/
+
+RUN bundle exec rake sitemap:create
+
+EXPOSE 3000
 CMD ["bundle", "exec", "puma", "-C", "./config/puma.rb"]

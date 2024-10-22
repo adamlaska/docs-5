@@ -1,5 +1,10 @@
 class ApplicationController < ActionController::Base
   helper_method :probably_authenticated?
+  helper_method :image_path
+
+  def image_path(name)
+    view_context.vite_asset_path(File.join("images", name))
+  end
 
   def route_not_found
     render file: Rails.root.join("public","404.html"), layout: false, status: 404
@@ -7,15 +12,9 @@ class ApplicationController < ActionController::Base
 
   private
 
-  def fetch_local_data(name)
-    file_path = File.join(Rails.root, 'data', "#{name}.yml")
-    YAML.load_file(file_path) || []
+  def default_nav
+    Rails.application.config.default_nav
   end
-
-  def get_nav_data(name = 'nav')
-    Nav.new(fetch_local_data(name)).nav_tree
-  end
-  helper_method :get_nav_data
 
   # capture some extra data so we can log it with lograge
   def append_info_to_payload(payload)

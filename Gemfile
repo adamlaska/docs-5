@@ -6,20 +6,13 @@ ruby File.read(".ruby-version").strip
 source "https://rubygems.org"
 
 # Choo choo 🚝 (only include the Rails gems we need)
-gem "actionpack", "~> 6.0"
+gem "actionpack", "~> 6.1"
 gem "actionview", "~> 6.0"
-gem "activesupport", "~> 6.0"
+gem "activesupport", "~> 6.1"
 gem "railties", "~> 6.0"
-gem "sprockets-rails"
 
 # Use Puma as the app server
 gem "puma"
-
-# Use SCSS for stylesheets
-gem "sass-rails"
-
-# Use Uglifier as compressor for JavaScript assets
-gem "uglifier"
 
 # Helps with running the server locally
 gem "foreman"
@@ -45,6 +38,20 @@ gem "lograge"
 # Error reporting
 gem "bugsnag"
 
+# Parse "front matter" from markdown files
+gem 'front_matter_parser'
+
+gem 'matrix'
+
+# Asset compilation
+gem 'vite_rails'
+
+# No page reloads
+gem 'turbo-rails'
+
+# Sitemap
+gem 'sitemap_generator'
+
 group :development, :test do
   # Call "byebug" anywhere in the code to stop execution and get a debugger console
   gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
@@ -54,7 +61,6 @@ end
 group :development do
   # Access an interactive console on exception pages or by calling `console` anywhere in the code.
   gem "web-console"
-  gem "listen"
   gem "pry"
   gem 'graphql-client'
 end

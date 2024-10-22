@@ -2,13 +2,24 @@
   "name": "docs",
   "private": true,
   "devDependencies": {
-    "husky": "^8.0.0"
+    "husky": "^8.0.0",
+    "netlify-cli": "^17.36.2",
+    "prettier": "2.8.4",
+    "sass": "^1.66.1",
+    "vite": "^4.5.5",
+    "vite-plugin-ruby": "^3.2.0"
   },
   "scripts": {
     "validate-agent-attributes-yaml": "npx --package ajv-cli ajv validate -s \"data/content/agent_attributes.schema.yaml\" -d \"data/content/agent_attributes.yaml\"",
     "validate-environment-variables-yaml": "npx --package ajv-cli ajv validate -s \"data/content/environment_variables.schema.yaml\" -d \"data/content/environment_variables.yaml\"",
     "lint": "npx alex@10 -q --diff \"pages/**/*.erb\" \"pages/**/*.txt\"",
     "mdlint": "npx markdownlint-cli2@0.3 pages \"#pages/agent/v3/help/*\"",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "prettier-check": "prettier -c \"app/frontend/**/*.{js,scss}\"",
+    "prettier-fix": "prettier -w \"app/frontend/**/*.{js,scss}\""
+  },
+  "dependencies": {
+    "@docsearch/js": "3",
+    "@hotwired/turbo-rails": "^7.3.0"
   }
 }

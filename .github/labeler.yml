@@ -1,7 +1,9 @@
 agent:
   - pages/agent/**/*
-test-analytics:
-  - pages/test_analytics/**/*
+cli:
+  - pages/cli/**/*
+test-engine:
+  - pages/test_engine/**/*
 pipelines:
   - pages/pipelines/**/*
   - pages/tutorials/**/*

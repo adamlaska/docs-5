@@ -27,33 +27,22 @@ module ApplicationHelper
     "https://github.com/buildkite/docs/edit/main#{view_file}"
   end
 
-  def algolia_api_key
-    ENV.fetch("ALGOLIA_API_KEY", "unknown")
-  end
-
-  def algolia_index_name
-    ENV.fetch("ALGOLIA_INDEX_NAME","unknown")
-  end
-
-  def algolia_app_id
-    ENV.fetch("ALGOLIA_APP_ID", "unknown")
-  end
-
   def render_attribute_content(attribute)
     render(partial: "quick_reference/#{attribute}", formats: [:md]).to_json.html_safe
   end
 
-  def logo_image_url
+  def logo_image_path
     image = 'logo.svg'
 
     # Pride month is June in The United States,
     # and this is generally acknowledged around the world
-    # even if jurisdictions have their own dates.
-    if DateTime.now.month == 6
+    # even if jurisdictions have their own dates. We also recognize
+    # Mardi Gras in Sydney as Australia's main Pride festival in February.
+    if DateTime.now.month == 6 || DateTime.now.month == 2
       image = 'logo-pride.svg'
     end
 
-    image_url(image)
+    image_path(image)
   end
 
   def top_level_nav_item_name(path)
@@ -65,5 +54,9 @@ module ApplicationHelper
       name = name.gsub("-", " ")
       name.titleize
     end
+  end
+
+  def seo_canonical_url
+    "https://buildkite.com#{request.path}"
   end
 end
